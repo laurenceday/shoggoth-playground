@@ -1,0 +1,203 @@
+import { useSafeAppsSDK } from "@safe-global/safe-apps-react-sdk"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { MarketController, PartialTransaction } from "@wildcatfi/wildcat-sdk"
+import {
+  FixedTermHooks,
+  HooksInstance,
+  OpenTermHooks,
+  PeriodicTermHooks,
+} from "@wildcatfi/wildcat-sdk/dist/access"
+
+import { toastRequest, ToastRequestConfig } from "@/components/Toasts"
+import { QueryKeys } from "@/config/query-keys"
+import { useCurrentNetwork } from "@/hooks/useCurrentNetwork"
+import { useEthersSigner } from "@/hooks/useEthersSigner"
+import { useAppDispatch } from "@/store/hooks"
+import { resetEditPolicyState } from "@/store/slices/editPolicySlice/editPolicySlice"
+import { trimAddress } from "@/utils/formatters"
+import {
+  getBlockedLenders,
+  getLenderUpdateSafeBatch,
+} from "@/utils/lenderAccess"
+
+export type SubmitPolicyUpdatesInputs = {
+  addLenders?: string[]
+  removeLenders?: string[]
+  setName?: string
+  marketsToUpdate?: string[]
+}
+
+export function useSubmitUpdates(policy?: HooksInstance | MarketController) {
+  // const { t } = useTranslation
+  const signer = useEthersSigner()
+  const client = useQueryClient()
+  const { isTestnet, targetChainId } = useCurrentNetwork()
+  const { connected: isConnectedToSafe, sdk: gnosisSafeSDK } = useSafeAppsSDK()
+  const dispatch = useAppDispatch()
+
+  const waitForTransaction = async (txHash: string) => {
+    if (!gnosisSafeSDK) throw Error("No sdk found")
+    return gnosisSafeSDK.eth.getTransactionReceipt([txHash]).then((tx) => {
+      if (tx) {
+        tx.transactionHash = txHash
+      }
+      return tx
+    })
+  }
+
+  const {
+    mutate: submitUpdates,
+    isPending: isSubmitting,
+    isSuccess,
+    isError,
+  } = useMutation({
+    mutationFn: async ({
+      addLenders,
+      removeLenders,
+      setName,
+      marketsToUpdate,
+    }: SubmitPolicyUpdatesInputs) => {
+      if (!signer || !policy) {
+        return
+      }
+
+      console.log(
+        `useDeployMarket :: isTestnet: ${isTestnet} :: isConnectedToSafe: ${isConnectedToSafe} :: gnosisSafeSDK: ${!!gnosisSafeSDK}`,
+      )
+
+      const txs: Array<PartialTransaction & ToastRequestConfig> = []
+      if (addLenders && addLenders.length) {
+        console.log(`adding lenders`)
+        console.log(addLenders)
+        if (
+          policy instanceof OpenTermHooks ||
+          policy instanceof FixedTermHooks ||
+          policy instanceof PeriodicTermHooks
+        ) {
+          console.log(`adding lenders to v2 policy`)
+
+          const policyContract = policy.contract
+          const blockedLenders = await getBlockedLenders(
+            addLenders,
+            "getLenderStatus" in policyContract
+              ? (lender) => policyContract.getLenderStatus(lender)
+              : undefined,
+          )
+          blockedLenders.forEach((lender) => {
+            txs.push({
+              ...policy.populateUnblockLender(lender),
+              pending: `Restoring deposit access for ${trimAddress(lender)}`,
+              success: `Restored deposit access for ${trimAddress(lender)}`,
+              error: `Failed to restore access for ${trimAddress(lender)}`,
+            })
+          })
+
+          const tx = policy.populateAddLenders(
+            addLenders.map((lender) => ({ lender })),
+          )
+          txs.push({
+            ...tx,
+            pending: `Adding ${addLenders.length} lenders`,
+            success: `Added ${addLenders.length} lenders`,
+            error: `Failed to add ${addLenders.length} lenders`,
+          })
+        } else {
+          console.log(`adding lenders to v1 policy`)
+          const tx = marketsToUpdate?.length
+            ? policy.populateAuthorizeLendersAndUpdateMarkets(
+                addLenders,
+                marketsToUpdate,
+              )
+            : policy.populateAuthorizeLenders(addLenders)
+          txs.push({
+            ...tx,
+            pending: `Adding ${addLenders.length} lenders`,
+            success: `Added ${addLenders.length} lenders`,
+            error: `Failed to add ${addLenders.length} lenders`,
+          })
+        }
+      }
+      if (removeLenders && removeLenders.length) {
+        console.log(`removing lenders`)
+        console.log(removeLenders)
+        console.log(`policy address: ${policy.address}`)
+        console.log(`policy address: ${policy.contract.address}`)
+        if (
+          policy instanceof OpenTermHooks ||
+          policy instanceof FixedTermHooks ||
+          policy instanceof PeriodicTermHooks
+        ) {
+          const tx = policy.populateBlockLenders(removeLenders)
+          txs.push({
+            ...tx,
+            pending: `Removing ${removeLenders.length} lenders`,
+            success: `Removed ${removeLenders.length} lenders`,
+            error: `Failed to remove ${removeLenders.length} lenders`,
+          })
+        } else {
+          const tx = marketsToUpdate?.length
+            ? policy.populateDeauthorizeLendersAndUpdateMarkets(
+                removeLenders,
+                marketsToUpdate,
+              )
+            : policy.populateDeauthorizeLenders(removeLenders)
+          txs.push({
+            ...tx,
+            pending: `Removing ${removeLenders.length} lenders`,
+            success: `Removed ${removeLenders.length} lenders`,
+            error: `Failed to remove ${removeLenders.length} lenders`,
+          })
+        }
+      }
+
+      const safeBatch = getLenderUpdateSafeBatch(isConnectedToSafe, txs)
+      if (txs.length > 1) {
+        txs.forEach((tx, i) => {
+          tx.pending = `Step ${i + 1}/${txs.length}: ${tx.pending}`
+          tx.success = `Step ${i + 1}/${txs.length}: ${tx.success}`
+          tx.error = `Step ${i + 1}/${txs.length}: ${tx.error}`
+        })
+      }
+
+      if (safeBatch) {
+        const tx = gnosisSafeSDK.txs.send({ txs: safeBatch })
+        await toastRequest(tx, {
+          pending: "Submitting gnosis transaction batch to update lenders...",
+          success: "Lenders updated!",
+          error: "Failed to update lenders",
+        })
+      } else {
+        // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+        for (const tx of txs) {
+          // eslint-disable-next-line no-restricted-syntax, no-await-in-loop
+          await toastRequest(
+            signer
+              .sendTransaction({
+                to: tx.to,
+                data: tx.data,
+                value: tx.value,
+              })
+              .then(({ wait }) => wait()),
+            tx,
+          )
+        }
+      }
+    },
+    onSuccess: () => {
+      client.invalidateQueries({
+        queryKey: QueryKeys.Borrower.GET_POLICY(targetChainId, policy?.address),
+      })
+      dispatch(resetEditPolicyState())
+    },
+    onError(error) {
+      console.log(error)
+    },
+  })
+
+  return {
+    submitUpdates,
+    isSubmitting,
+    isSuccess,
+    isError,
+  }
+}

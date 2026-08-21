@@ -1,0 +1,87 @@
+import { Box, Button, Typography } from "@mui/material"
+import Link from "next/link"
+
+import Image from "@/assets/pictures/bannerBG.webp"
+import { COLORS } from "@/theme/colors"
+
+type Link = {
+  isExternal: boolean
+  url: string
+}
+
+export type LeadBannerProps = {
+  title?: string
+  subtitle?: string
+  buttonText?: string
+  buttonLink?: Link
+  buttonOnClick?: () => void
+  compact?: boolean
+}
+
+export const LeadBanner = ({
+  title,
+  subtitle,
+  buttonText,
+  buttonLink,
+  buttonOnClick,
+  compact = false,
+}: LeadBannerProps) => (
+  <Box
+    sx={{
+      width: "100%",
+      height: "min-content",
+
+      display: "flex",
+      flexDirection: compact ? "row" : "column",
+      alignItems: compact ? "center" : undefined,
+      justifyContent: compact ? "space-between" : undefined,
+      gap: "24px",
+
+      padding: compact ? "20px 24px" : "28px 40px 32px 32px",
+      borderRadius: "16px",
+      color: "white",
+
+      backgroundImage: `url(${Image.src})`,
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "cover",
+    }}
+  >
+    <Box
+      sx={{
+        width: compact ? "auto" : "400px",
+        flex: compact ? 1 : undefined,
+        minWidth: 0,
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+      }}
+    >
+      <Typography variant="title2" color={COLORS.white}>
+        {title}
+      </Typography>
+      <Typography variant="text2" color={COLORS.white} sx={{ opacity: 0.8 }}>
+        {subtitle}
+      </Typography>
+    </Box>
+
+    {Boolean(buttonText && (buttonLink || buttonOnClick)) && (
+      <Button
+        {...(buttonLink
+          ? {
+              component: Link,
+              href: buttonLink.url,
+              target: buttonLink.isExternal ? "_blank" : "_self",
+            }
+          : {})}
+        onClick={buttonOnClick}
+        variant="contained"
+        color="secondary"
+        size="medium"
+        sx={{ width: "fit-content", flexShrink: 0 }}
+      >
+        {buttonText}
+      </Button>
+    )}
+  </Box>
+)

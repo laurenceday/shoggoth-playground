@@ -1,0 +1,74 @@
+import { configureStore } from "@reduxjs/toolkit"
+
+import borrowerDashboardAmountsSlice from "@/store/slices/borrowerDashboardAmountsSlice/borrowerDashboardAmountsSlice"
+import borrowerDashboardSlice from "@/store/slices/borrowerDashboardSlice/borrowerDashboardSlice"
+import cookieBannerSlice from "@/store/slices/cookieBannerSlice/cookieBannerSlice"
+import createMarketSidebarSlice from "@/store/slices/createMarketSidebarSlice/createMarketSidebarSlice"
+import hideMarketSectionsSlice from "@/store/slices/hideMarketSectionsSlice/hideMarketSectionsSlice"
+import lenderDashboardAmountsSlice from "@/store/slices/lenderDashboardAmountSlice/lenderDashboardAmountsSlice"
+import lenderDashboardSlice from "@/store/slices/lenderDashboardSlice/lenderDashboardSlice"
+import policyLendersSlice from "@/store/slices/policyLendersSlice/policyLendersSlice"
+import wrapDebtTokenFlowSlice from "@/store/slices/wrapDebtTokenFlowSlice/wrapDebtTokenFlowSlice"
+
+import apiTokensSlice from "./slices/apiTokensSlice/apiTokensSlice"
+import borrowerLendersTabSidebarSlice from "./slices/borrowerLendersTabSidebarSlice/borrowerLendersTabSidebarSlice"
+import borrowerOverviewSlice from "./slices/borrowerOverviewSlice/borrowerOverviewSlice"
+import createMarketSigningDraftsSlice from "./slices/createMarketSigningDraftsSlice/createMarketSigningDraftsSlice"
+import editLendersListSlice from "./slices/editLendersListSlice/editLendersListSlice"
+import editPolicySlice from "./slices/editPolicySlice/editPolicySlice"
+import highlightSidebarSlice from "./slices/highlightSidebarSlice/highlightSidebarSlice"
+import lenderMarketRoutingSlice from "./slices/lenderMarketRoutingSlice/lenderMarketRoutingSlice"
+import lenderMlaSignaturesSlice from "./slices/lenderMlaSignaturesSlice/mlaSignaturesSlice"
+import marketFiltersSlice from "./slices/marketFiltersSlice/marketFiltersSlice"
+import marketsOverviewSidebarSlice from "./slices/marketsOverviewSidebarSlice/marketsOverviewSidebarSlice"
+import notificationsSidebarSlice from "./slices/notificationsSidebarSlice/notificationsSidebarSlice"
+import notificationsSlice from "./slices/notificationsSlice/notificationsSlice"
+import pendingSafeMessagesSlice from "./slices/pendingSafeMessagesSlice/pendingSafeMessagesSlice"
+import routingSlice from "./slices/routingSlice/routingSlice"
+import selectedNetworkSlice from "./slices/selectedNetworkSlice/selectedNetworkSlice"
+import touModalSlice from "./slices/touModalSlice/touModalSlice"
+
+export const makeStore = () => {
+  const store = configureStore({
+    reducer: {
+      wrapDebtTokenFlow: wrapDebtTokenFlowSlice,
+      hideMarketSections: hideMarketSectionsSlice,
+      apiTokens: apiTokensSlice,
+      routing: routingSlice,
+      createMarketSidebar: createMarketSidebarSlice,
+      marketsOverviewSidebar: marketsOverviewSidebarSlice,
+      borrowerDashboard: borrowerDashboardSlice,
+      borrowerDashboardAmounts: borrowerDashboardAmountsSlice,
+      lenderDashboard: lenderDashboardSlice,
+      lenderDashboardAmounts: lenderDashboardAmountsSlice,
+      highlightSidebar: highlightSidebarSlice,
+      lenderMarketRouting: lenderMarketRoutingSlice,
+      editLendersList: editLendersListSlice,
+      policyLenders: policyLendersSlice,
+      editPolicy: editPolicySlice,
+      borrowerOverview: borrowerOverviewSlice,
+      notifications: notificationsSlice,
+      notificationsSidebar: notificationsSidebarSlice,
+      borrowerLendersTabSidebar: borrowerLendersTabSidebarSlice,
+      lenderMlaSignatures: lenderMlaSignaturesSlice,
+      cookieBanner: cookieBannerSlice,
+      selectedNetwork: selectedNetworkSlice,
+      marketFilters: marketFiltersSlice,
+      touModal: touModalSlice,
+      pendingSafeMessages: pendingSafeMessagesSlice,
+      createMarketSigningDrafts: createMarketSigningDraftsSlice,
+    },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware({
+        serializableCheck: {
+          ignoredActions: ["persist/PERSIST", "persist/REHYDRATE"],
+        },
+      }),
+  })
+
+  return store
+}
+
+export type AppStore = ReturnType<typeof makeStore>
+export type RootState = ReturnType<AppStore["getState"]>
+export type AppDispatch = AppStore["dispatch"]

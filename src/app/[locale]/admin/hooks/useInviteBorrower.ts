@@ -1,0 +1,52 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+
+import { BorrowerInvitationInput } from "@/app/api/invite/interface"
+import { QueryKeys } from "@/config/query-keys"
+import { useAuthToken, useRemoveBadApiToken } from "@/hooks/useApiAuth"
+import { useSelectedNetwork } from "@/hooks/useSelectedNetwork"
+
+export const useInviteBorrower = (address?: string) => {
+  const token = useAuthToken()
+  const client = useQueryClient()
+  const { chainId } = useSelectedNetwork()
+  const { mutate: removeBadToken } = useRemoveBadApiToken()
+  const isAdminForChain = token?.isAdmin && token.chainId === chainId
+  return useMutation({
+    mutationKey: ["inviteBorrower", chainId, address],
+    mutationFn: async (data: BorrowerInvitationInput) => {
+      if (!token || !isAdminForChain || data.chainId !== chainId) {
+        throw Error("Not authorized to invite borrower on this chain")
+      }
+      const response = await fetch("/api/invite", {
+        method: "POST",
+        body: JSON.stringify(data),
+        headers: {
+          Authorization: `Bearer ${token.token}`,
+        },
+      })
+      if (response.status === 401) {
+        removeBadToken()
+        throw Error("Failed to invite borrower")
+      }
+      const result = await response.json()
+      if (!result.success) {
+        throw new Error("Failed to invite borrower")
+      }
+    },
+    onSuccess: () => {
+      client.invalidateQueries({
+        queryKey: QueryKeys.Admin.GET_ALL_BORROWER_INVITATIONS(chainId),
+      })
+      const normalizedAddress = address?.toLowerCase()
+      client.invalidateQueries({
+        queryKey: QueryKeys.Borrower.GET_PROFILE(chainId, normalizedAddress),
+      })
+      client.invalidateQueries({
+        queryKey: QueryKeys.Borrower.GET_BORROWER_PROFILE(
+          chainId,
+          normalizedAddress,
+        ),
+      })
+    },
+  })
+}

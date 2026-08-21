@@ -1,0 +1,43 @@
+import {
+  FixedTermHooksConfig,
+  HooksKind,
+  Market,
+  MarketVersion,
+} from "@wildcatfi/wildcat-sdk"
+
+export const getMarketTypeChip = (market: Market) => {
+  const kind =
+    market.version === MarketVersion.V1 ? HooksKind.OpenTerm : market.hooksKind!
+
+  if (kind === HooksKind.FixedTerm) {
+    const hooksConfig = market.hooksConfig as FixedTermHooksConfig
+    const fixedTermEndTime = hooksConfig.fixedTermEndTime * 1000
+    return {
+      kind,
+      fixedPeriod: fixedTermEndTime - Date.now(),
+      // Carried alongside `fixedPeriod` so the chip can render the maturity in
+      // UTC. Deriving the date from `now + fixedPeriod` renders it in the
+      // viewer's local time, which disagrees with every other maturity display.
+      fixedTermEndTime: hooksConfig.fixedTermEndTime,
+    }
+    /*  if (fixedTermEndTime > Date.now()) {
+      return {
+        kind,
+        fixedPeriod: fixedTermEndTime - Date.now(),
+      }
+    }
+    // If market is in fixed term but the fixed term has ended, we show the market as open term
+    return {
+      kind: HooksKind.OpenTerm,
+    } */
+  }
+  return {
+    kind,
+  }
+}
+
+// temporary: tolerate periodic market data without exposing periodic ux.
+export const isFrontendVisibleMarket = (market: Market) =>
+  market.version !== MarketVersion.V2 ||
+  (market.hooksKind !== HooksKind.PeriodicTerm &&
+    market.hooksConfig?.kind !== HooksKind.PeriodicTerm)

@@ -1,0 +1,782 @@
+"use client"
+
+import * as React from "react"
+import { useEffect, useState } from "react"
+
+import { Box, Divider, Skeleton, Typography, useTheme } from "@mui/material"
+import { SupportedChainId } from "@wildcatfi/wildcat-sdk"
+import { useSearchParams } from "next/navigation"
+import { useTranslation } from "react-i18next"
+import { useAccount } from "wagmi"
+
+import { BarCharts } from "@/app/[locale]/lender/market/[address]/components/BarCharts"
+import { BorrowerPenaltyWarning } from "@/app/[locale]/lender/market/[address]/components/BorrowerPenaltyWarning"
+import { MobileLenderBanner } from "@/app/[locale]/lender/market/[address]/components/mobile/MobileLenderBanner"
+import { MobileMarketActions } from "@/app/[locale]/lender/market/[address]/components/mobile/MobileMarketActions"
+import { MobileMlaAlert } from "@/app/[locale]/lender/market/[address]/components/mobile/MobileMlaAlert"
+import { MobileMlaModal } from "@/app/[locale]/lender/market/[address]/components/mobile/MobileMlaModal/MobileMlaModal"
+import { DepositModal } from "@/app/[locale]/lender/market/[address]/components/Modals/DepositModal"
+import { MobileMarketDescriptionModal } from "@/app/[locale]/lender/market/[address]/components/Modals/MobileMarketDescriptionModal"
+import { MobileMarketHistoryModal } from "@/app/[locale]/lender/market/[address]/components/Modals/MobileMarketHistoryModal"
+import { NonMlaAcknowledgementModal } from "@/app/[locale]/lender/market/[address]/components/Modals/NonMlaAcknowledgementModal"
+import { WithdrawModal } from "@/app/[locale]/lender/market/[address]/components/Modals/WithdrawModal"
+import { SwitchChainAlert } from "@/app/[locale]/lender/market/[address]/components/SwitchChainAlert"
+import { WithdrawalRequests } from "@/app/[locale]/lender/market/[address]/components/WithdrawalRequests"
+import { Footer } from "@/components/Footer"
+import { ConnectWalletDialog } from "@/components/Header/HeaderButton/ConnectWalletDialog"
+import { LeadBanner } from "@/components/LeadBanner"
+import { MarketHeader } from "@/components/MarketHeader"
+import { MarketParameters } from "@/components/MarketParameters"
+import { MobileConnectWallet } from "@/components/MobileConnectWallet"
+import { PaginatedMarketRecordsTable } from "@/components/PaginatedMarketRecordsTable"
+import { ProfileSection } from "@/components/Profile/ProfileSection"
+import { useGetMarket } from "@/hooks/useGetMarket"
+import { useMarketAccount } from "@/hooks/useMarketAccount"
+import { useMarketMla } from "@/hooks/useMarketMla"
+import { useMarketSummary } from "@/hooks/useMarketSummary"
+import { useMobileResolution } from "@/hooks/useMobileResolution"
+import { useNetworkGate } from "@/hooks/useNetworkGate"
+import { useTokenWrapper } from "@/hooks/wrapper/useTokenWrapper"
+import { useWrapperForMarket } from "@/hooks/wrapper/useWrapperForMarket"
+import { ROUTES } from "@/routes"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { hideDescriptionSection } from "@/store/slices/hideMarketSectionsSlice/hideMarketSectionsSlice"
+import {
+  LenderMarketSections,
+  setIsLender,
+  setIsLoading,
+  setSection,
+  resetPageState,
+  setWithdrawalsCount,
+} from "@/store/slices/lenderMarketRoutingSlice/lenderMarketRoutingSlice"
+import {
+  setActiveTab,
+  setIsMobileOpenedState,
+  WrapDebtTokenTab,
+} from "@/store/slices/wrapDebtTokenFlowSlice/wrapDebtTokenFlowSlice"
+import { COLORS } from "@/theme/colors"
+
+import { CapacityBarChart } from "./components/BarCharts/CapacityBarChart"
+import { MarketActions } from "./components/MarketActions"
+import { MarketSummary } from "./components/MarketSummary"
+import { WrapDebtToken } from "./components/WrapDebtToken"
+import { useBorrowerPenaltyWarning } from "./hooks/useBorrowerPenaltyWarning"
+import { useGetLenderWithdrawals } from "./hooks/useGetLenderWithdrawals"
+import { LenderStatus } from "./interface"
+import {
+  LenderBannerWrapper,
+  MarketContentColumn,
+  SectionContainer,
+  SkeletonContainer,
+  SkeletonStyle,
+} from "./style"
+import {
+  getEffectiveLenderRole,
+  getLenderMarketLoadingState,
+  shouldShowLenderRequestBanner,
+} from "./utils"
+
+const AccountSectionSkeleton = () => (
+  <Box sx={SkeletonContainer} flexDirection="column" gap="20px">
+    <Skeleton height="36px" width="100%" sx={SkeletonStyle} />
+    <Skeleton height="36px" width="100%" sx={SkeletonStyle} />
+    <Skeleton height="36px" width="100%" sx={SkeletonStyle} />
+  </Box>
+)
+
+export default function LenderMarketDetails({
+  params: { address },
+}: {
+  params: { address: string }
+}) {
+  const theme = useTheme()
+  const { t } = useTranslation()
+  const dispatch = useAppDispatch()
+  const { isConnected } = useAccount()
+
+  const [isConnectDialogOpen, setIsConnectDialogOpen] = useState(false)
+  const openConnectDialog = () => setIsConnectDialogOpen(true)
+  const closeConnectDialog = () => setIsConnectDialogOpen(false)
+
+  const searchParams = useSearchParams()
+  const marketChainIdRaw = parseInt(searchParams.get("chainId") ?? "", 10)
+  const marketChainId = Number.isFinite(marketChainIdRaw)
+    ? marketChainIdRaw
+    : undefined
+
+  const {
+    data: liveMarket,
+    indexedMarket,
+    apiError,
+    apiLoading,
+    isDiscoveringChainId,
+  } = useGetMarket({
+    address,
+    chainId: marketChainId,
+  })
+  const market = liveMarket ?? indexedMarket
+  const hasLiveMarket = !!liveMarket
+
+  const { isWrongNetwork, isSelectionMismatch, selectedChainId } =
+    useNetworkGate({
+      desiredChainId: market?.chainId ?? marketChainId,
+      includeAgreementStatus: false,
+    })
+
+  const { data: marketAccount, isLoadingInitial: isMarketAccountLoading } =
+    useMarketAccount(market)
+  const { data: withdrawals, isLoadingInitial: isWithdrawalsLoading } =
+    useGetLenderWithdrawals(market)
+  const { data: marketSummary, isLoading: isLoadingSummary } = useMarketSummary(
+    address.toLowerCase(),
+    market?.chainId ?? selectedChainId,
+  )
+  const { shouldWarn: showBorrowerPenaltyWarning } =
+    useBorrowerPenaltyWarning(market)
+
+  const hasMarketDescription =
+    !!marketSummary && marketSummary?.description !== ""
+
+  const isDifferentChain = isSelectionMismatch || isWrongNetwork
+
+  const authorizedInMarket = Boolean(
+    marketAccount &&
+      isConnected &&
+      !isWrongNetwork &&
+      [LenderStatus.DepositAndWithdraw, LenderStatus.WithdrawOnly].includes(
+        getEffectiveLenderRole(marketAccount),
+      ),
+  )
+
+  const {
+    wrapperAddress,
+    hasWrapper,
+    hasFactory,
+    isLoading: isWrapperLookupLoading,
+  } = useWrapperForMarket(market)
+
+  const {
+    data: wrapper,
+    isLoading: isWrapperLoading,
+    isError: isWrapperError,
+  } = useTokenWrapper(
+    market?.chainId as SupportedChainId | undefined,
+    wrapperAddress,
+  )
+
+  const {
+    isPageLoading: isLoading,
+    isTransactionsLoading,
+    isBarChartsLoading,
+    isMarketActionsLoading,
+  } = getLenderMarketLoadingState({
+    isMarketReady: !!market,
+    hasLiveMarket,
+    apiLoading,
+    isDiscoveringChainId,
+    hasMarketAccount: !!marketAccount,
+    isWithdrawalsLoading,
+    authorizedInMarket,
+    isDifferentChain,
+  })
+  const isAuthorizationPending =
+    !!market &&
+    isConnected &&
+    !isWrongNetwork &&
+    !marketAccount &&
+    isMarketAccountLoading
+  const showLenderRequestBanner = shouldShowLenderRequestBanner({
+    isConnected,
+    isDifferentChain,
+    authorizedInMarket: isAuthorizationPending ? undefined : authorizedInMarket,
+  })
+  const currentSection = useAppSelector(
+    (state) => state.lenderMarketRouting.currentSection,
+  )
+
+  useEffect(() => {
+    dispatch(setIsLoading(isLoading))
+  }, [isLoading])
+
+  useEffect(() => {
+    if (isAuthorizationPending) return
+
+    if (!authorizedInMarket) {
+      dispatch(setIsLender(authorizedInMarket))
+      dispatch(setSection(LenderMarketSections.STATUS))
+    } else {
+      dispatch(setIsLender(authorizedInMarket))
+      dispatch(setSection(LenderMarketSections.TRANSACTIONS))
+    }
+  }, [authorizedInMarket, dispatch, isAuthorizationPending])
+
+  const ongoingCount = (
+    withdrawals.activeWithdrawal ? [withdrawals.activeWithdrawal] : []
+  ).flatMap((b) => b.requests).length
+
+  const claimableCount = (withdrawals.expiredPendingWithdrawals ?? []).flatMap(
+    (withdrawal) => {
+      const claimableAmount = withdrawal.availableWithdrawalAmount
+      return withdrawal.requests.filter((request) => {
+        const amount = claimableAmount.mulDiv(
+          request.scaledAmount,
+          withdrawal.scaledAmount,
+        )
+        return amount.gt(0)
+      })
+    },
+  ).length
+
+  const outstandingCount = (
+    withdrawals?.expiredPendingWithdrawals ?? []
+  ).flatMap((b) =>
+    b.requests.filter((wd) => wd.getNormalizedAmountOwed(b.batch).gt(0)),
+  ).length
+
+  const totalWithdrawalsCount = ongoingCount + claimableCount + outstandingCount
+
+  useEffect(() => {
+    dispatch(setWithdrawalsCount(totalWithdrawalsCount))
+  }, [totalWithdrawalsCount])
+
+  useEffect(() => {
+    if (currentSection !== LenderMarketSections.WRAP_DEBT_TOKEN) {
+      dispatch(setActiveTab(WrapDebtTokenTab.WRAP))
+    }
+  }, [currentSection])
+
+  useEffect(
+    () => () => {
+      dispatch(resetPageState())
+      dispatch(setActiveTab(WrapDebtTokenTab.WRAP))
+    },
+    [],
+  )
+
+  const isMobile = useMobileResolution()
+
+  const { data: mla, isLoading: mlaLoading } = useMarketMla(
+    market?.address,
+    market?.chainId,
+  )
+
+  const [isMobileDepositOpen, setIsMobileDepositOpen] = React.useState(false)
+  const [isMobileAckOpen, setIsMobileAckOpen] = React.useState(false)
+  const [isMobileWithdrawalOpen, setIsMobileWithdrawalOpen] =
+    React.useState(false)
+  const [isMobileMLAOpen, setIsMobileMLAOpen] = React.useState(false)
+  const [isMobileDescriptionOpen, setIsMobileDescriptionOpen] =
+    React.useState(false)
+  const [isMobileHistoryOpen, setIsMobileHistoryOpen] = React.useState(false)
+  const isMobileWrapperSectionOpen = useAppSelector(
+    (state) => state.wrapDebtTokenFlow.isMobileOpenedState,
+  )
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  useEffect(() => {
+    if (!marketSummary || marketSummary!.description === "") {
+      dispatch(hideDescriptionSection(true))
+    } else {
+      dispatch(hideDescriptionSection(false))
+    }
+  }, [marketSummary])
+
+  useEffect(() => {
+    if (!isMobile) {
+      dispatch(setIsMobileOpenedState(true))
+    } else {
+      dispatch(setIsMobileOpenedState(false))
+    }
+  }, [isMobile])
+
+  if (!mounted) return null
+
+  if (apiError)
+    return (
+      <Box sx={{ padding: "52px 20px 0 44px" }}>
+        <Box sx={{ width: "69%" }}>
+          <Typography variant="title2">
+            Failed to load market data. Please try again later.
+          </Typography>
+        </Box>
+      </Box>
+    )
+
+  if (isLoading && isMobile)
+    return (
+      <Box
+        sx={{
+          height: "100%",
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+        }}
+      >
+        <Skeleton
+          sx={{
+            width: "100%",
+            height: "156px",
+            backgroundColor: COLORS.white06,
+            borderRadius: "14px",
+          }}
+        />
+
+        <Skeleton
+          sx={{
+            width: "100%",
+            height: "126px",
+            backgroundColor: COLORS.white06,
+            borderRadius: "14px",
+          }}
+        />
+      </Box>
+    )
+
+  if (isLoading && !isMobile)
+    return (
+      <Box sx={{ padding: "52px 20px 0 44px" }}>
+        <Box sx={{ width: "69%" }}>
+          <Box width="100%" height="90px">
+            <Skeleton
+              height="20px"
+              width="132px"
+              sx={{ bgcolor: COLORS.athensGrey }}
+            />
+          </Box>
+          <Box sx={SkeletonContainer}>
+            <Skeleton height="82px" width="395px" sx={SkeletonStyle} />
+            <Skeleton height="82px" width="395px" sx={SkeletonStyle} />
+          </Box>
+          <Box
+            sx={SkeletonContainer}
+            marginTop="56px"
+            flexDirection="column"
+            gap="20px"
+          >
+            <Skeleton height="36px" width="100%" sx={SkeletonStyle} />
+            <Skeleton height="36px" width="100%" sx={SkeletonStyle} />
+            <Skeleton height="36px" width="100%" sx={SkeletonStyle} />
+          </Box>
+        </Box>
+      </Box>
+    )
+
+  if (!market)
+    return (
+      <Box sx={{ padding: "52px 20px 0 44px" }}>
+        <Box sx={{ width: "69%" }}>
+          <Typography variant="text2">
+            {t("borrowerMarketDetails.noDataAvailable")}
+          </Typography>
+        </Box>
+      </Box>
+    )
+
+  if (isMobile && isMobileAckOpen)
+    return (
+      <NonMlaAcknowledgementModal
+        open
+        marketAddress={market.address}
+        marketName={market.name}
+        borrowerAddress={market.borrower}
+        chainId={market.chainId}
+        onClose={() => setIsMobileAckOpen(false)}
+        onAcknowledged={() => {
+          setIsMobileAckOpen(false)
+          setIsMobileDepositOpen(true)
+        }}
+      />
+    )
+
+  if (isMobile && isMobileDepositOpen && marketAccount)
+    return (
+      <DepositModal
+        isMobileOpen={isMobileDepositOpen}
+        setIsMobileOpen={setIsMobileDepositOpen}
+        marketAccount={marketAccount}
+        showBorrowerPenaltyWarning={showBorrowerPenaltyWarning}
+      />
+    )
+
+  if (isMobile && isMobileWithdrawalOpen && marketAccount)
+    return (
+      <WithdrawModal
+        marketAccount={marketAccount}
+        wrapper={wrapper}
+        hasWrapper={hasWrapper}
+        isMobileOpen={isMobileWithdrawalOpen}
+        setIsMobileOpen={setIsMobileWithdrawalOpen}
+      />
+    )
+
+  if (isMobile && isMobileMLAOpen)
+    return (
+      <MobileMlaModal
+        isMobileOpen={isMobileMLAOpen}
+        setIsMobileOpen={setIsMobileMLAOpen}
+        mla={mla}
+        isLoading={mlaLoading}
+      />
+    )
+
+  if (isMobile && isMobileDescriptionOpen)
+    return (
+      <Box>
+        <MobileMarketDescriptionModal
+          marketName={market?.name}
+          marketSummary={marketSummary}
+          isLoading={isLoadingSummary}
+          setIsMobileDescriptionOpen={setIsMobileDescriptionOpen}
+        />
+
+        {marketAccount &&
+          !isWithdrawalsLoading &&
+          (authorizedInMarket || isDifferentChain) && (
+            <MobileMarketActions
+              marketAccount={marketAccount}
+              withdrawals={withdrawals}
+              wrapper={wrapper}
+              hasWrapper={hasWrapper}
+              isLiveMarketReady={!isMarketActionsLoading}
+              isMobileWithdrawalOpen={isMobileWithdrawalOpen}
+              setIsMobileDepositOpen={setIsMobileDepositOpen}
+              setIsMobileAckOpen={setIsMobileAckOpen}
+              setIsMobileWithdrawalOpen={setIsMobileWithdrawalOpen}
+              isMLAOpen={isMobileMLAOpen}
+              setIsMLAOpen={setIsMobileMLAOpen}
+            />
+          )}
+
+        <Footer showFooter={false} />
+      </Box>
+    )
+
+  if (isMobile && isMobileHistoryOpen)
+    return (
+      <Box>
+        <MobileMarketHistoryModal
+          market={market}
+          setIsMobileHistoryOpen={setIsMobileHistoryOpen}
+        />
+
+        {marketAccount &&
+          !isWithdrawalsLoading &&
+          (authorizedInMarket || isDifferentChain) && (
+            <MobileMarketActions
+              marketAccount={marketAccount}
+              withdrawals={withdrawals}
+              wrapper={wrapper}
+              hasWrapper={hasWrapper}
+              isLiveMarketReady={!isMarketActionsLoading}
+              isMobileWithdrawalOpen={isMobileWithdrawalOpen}
+              setIsMobileDepositOpen={setIsMobileDepositOpen}
+              setIsMobileAckOpen={setIsMobileAckOpen}
+              setIsMobileWithdrawalOpen={setIsMobileWithdrawalOpen}
+              isMLAOpen={isMobileMLAOpen}
+              setIsMLAOpen={setIsMobileMLAOpen}
+            />
+          )}
+
+        <Footer showFooter={false} />
+      </Box>
+    )
+
+  if (isMobile && isMobileWrapperSectionOpen)
+    return (
+      <>
+        <WrapDebtToken
+          market={market}
+          wrapper={wrapper}
+          hasWrapper={hasWrapper}
+          hasFactory={hasFactory}
+          isWrapperLoading={isWrapperLoading}
+          isWrapperLookupLoading={isWrapperLookupLoading}
+          isWrapperError={isWrapperError}
+          isAuthorizedLender={authorizedInMarket}
+          isDifferentChain={isDifferentChain}
+        />
+
+        <Footer showFooter={false} showDivider={false} />
+      </>
+    )
+
+  if (isMobile)
+    return (
+      <>
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+          }}
+        >
+          <MarketHeader
+            market={market}
+            marketAccount={marketAccount}
+            mla={mla}
+            hasMarketDescription={hasMarketDescription}
+          />
+
+          {showBorrowerPenaltyWarning && <BorrowerPenaltyWarning />}
+
+          <Box id="depositWithdraw">
+            {!isBarChartsLoading && marketAccount ? (
+              <BarCharts
+                marketAccount={marketAccount}
+                withdrawals={withdrawals}
+                isLender={authorizedInMarket}
+              />
+            ) : (
+              <AccountSectionSkeleton />
+            )}
+          </Box>
+
+          {hasMarketDescription && (
+            <Box id="marketDescription">
+              <MarketSummary
+                marketSummary={marketSummary}
+                isLoading={isLoadingSummary}
+                isOpen={isMobileDescriptionOpen}
+                setIsOpen={setIsMobileDescriptionOpen}
+              />
+            </Box>
+          )}
+
+          <Box id="status">
+            <MarketParameters
+              market={market}
+              viewerType="lender"
+              wrapper={wrapper}
+              hasWrapper={hasWrapper}
+            />
+          </Box>
+
+          <Box id="requests">
+            <WithdrawalRequests
+              withdrawals={withdrawals}
+              chainId={market.chainId}
+            />
+          </Box>
+
+          <Box id="marketHistory">
+            <PaginatedMarketRecordsTable
+              market={market}
+              setIsOpen={setIsMobileHistoryOpen}
+            />
+          </Box>
+
+          <Box id="mla">
+            <MobileMlaAlert
+              mla={mla}
+              isLoading={mlaLoading}
+              isMLAOpen={isMobileMLAOpen}
+              setIsMLAOpen={setIsMobileMLAOpen}
+            />
+          </Box>
+
+          {authorizedInMarket && (
+            <WrapDebtToken
+              market={market}
+              wrapper={wrapper}
+              hasWrapper={hasWrapper}
+              hasFactory={hasFactory}
+              isWrapperLoading={isWrapperLoading}
+              isWrapperLookupLoading={isWrapperLookupLoading}
+              isWrapperError={isWrapperError}
+              isAuthorizedLender={authorizedInMarket}
+              isDifferentChain={isDifferentChain}
+            />
+          )}
+
+          {!isConnected && (
+            <MobileLenderBanner
+              title="Connect Your Wallet"
+              subtitle="Connect a wallet to deposit into this market, view your position, and manage withdrawals."
+              buttonText="Connect Wallet"
+              onButtonClick={openConnectDialog}
+            />
+          )}
+
+          {showLenderRequestBanner && (
+            <MobileLenderBanner
+              title="Lend through Wildcat"
+              subtitle="Interested in lending through Wildcat? Click the link below to connect with this borrower!"
+              buttonText="Leave a Request"
+              href={`${ROUTES.lender.profile}/${market.borrower.toLowerCase()}`}
+            />
+          )}
+
+          {!isConnected && (
+            <MobileConnectWallet
+              open={isConnectDialogOpen}
+              handleClose={closeConnectDialog}
+            />
+          )}
+
+          {marketAccount &&
+            !isWithdrawalsLoading &&
+            (authorizedInMarket || isDifferentChain) && (
+              <MobileMarketActions
+                marketAccount={marketAccount}
+                withdrawals={withdrawals}
+                wrapper={wrapper}
+                hasWrapper={hasWrapper}
+                isLiveMarketReady={!isMarketActionsLoading}
+                isMobileWithdrawalOpen={isMobileWithdrawalOpen}
+                setIsMobileDepositOpen={setIsMobileDepositOpen}
+                setIsMobileAckOpen={setIsMobileAckOpen}
+                setIsMobileWithdrawalOpen={setIsMobileWithdrawalOpen}
+                isMLAOpen={isMobileMLAOpen}
+                setIsMLAOpen={setIsMobileMLAOpen}
+              />
+            )}
+        </Box>
+
+        <Footer showFooter={false} />
+      </>
+    )
+
+  return (
+    <Box>
+      <MarketHeader market={market} marketAccount={marketAccount} />
+
+      {isDifferentChain && (
+        <SwitchChainAlert desiredChainId={market?.chainId} />
+      )}
+
+      <Box sx={MarketContentColumn(theme, isDifferentChain)}>
+        {!isConnected && (
+          <Box sx={LenderBannerWrapper}>
+            <LeadBanner
+              title="Connect Your Wallet"
+              subtitle="Connect a wallet to deposit into this market, view your position, and manage withdrawals."
+              buttonText="Connect Wallet"
+              buttonOnClick={openConnectDialog}
+              compact
+            />
+          </Box>
+        )}
+
+        {showLenderRequestBanner && (
+          <Box sx={LenderBannerWrapper}>
+            <LeadBanner
+              title="Lend through Wildcat"
+              subtitle="Interested in lending through Wildcat? Click the link below to connect with this borrower!"
+              buttonText="Leave a Request"
+              buttonLink={{
+                isExternal: false,
+                url: `${
+                  ROUTES.lender.profile
+                }/${market.borrower.toLowerCase()}`,
+              }}
+            />
+          </Box>
+        )}
+
+        {!isConnected && (
+          <ConnectWalletDialog
+            open={isConnectDialogOpen}
+            handleClose={closeConnectDialog}
+          />
+        )}
+
+        {showBorrowerPenaltyWarning && <BorrowerPenaltyWarning />}
+
+        <Box sx={SectionContainer(theme)}>
+          {currentSection === LenderMarketSections.TRANSACTIONS && (
+            <Box>
+              {isTransactionsLoading || !marketAccount ? (
+                <AccountSectionSkeleton />
+              ) : (
+                <>
+                  {authorizedInMarket && !isDifferentChain && (
+                    <MarketActions
+                      marketAccount={marketAccount}
+                      withdrawals={withdrawals}
+                      showBorrowerPenaltyWarning={showBorrowerPenaltyWarning}
+                      wrapper={wrapper}
+                      hasWrapper={hasWrapper}
+                      isLiveMarketReady={!isMarketActionsLoading}
+                    />
+                  )}
+                  <CapacityBarChart
+                    marketAccount={marketAccount}
+                    legendType="big"
+                    isLender={authorizedInMarket}
+                  />
+                </>
+              )}
+            </Box>
+          )}
+
+          {currentSection === LenderMarketSections.STATUS && (
+            <Box marginTop="12px">
+              {!isBarChartsLoading && marketAccount ? (
+                <>
+                  <BarCharts
+                    marketAccount={marketAccount}
+                    withdrawals={withdrawals}
+                    isLender={authorizedInMarket}
+                  />
+                  <Divider sx={{ margin: "40px 0 44px" }} />
+                </>
+              ) : (
+                <AccountSectionSkeleton />
+              )}
+              <MarketParameters
+                market={market}
+                viewerType="lender"
+                wrapper={wrapper}
+                hasWrapper={hasWrapper}
+              />
+            </Box>
+          )}
+
+          {currentSection === LenderMarketSections.SUMMARY && (
+            <MarketSummary
+              marketSummary={marketSummary}
+              isLoading={isLoadingSummary}
+            />
+          )}
+
+          {currentSection === LenderMarketSections.BORROWER_PROFILE && (
+            <ProfileSection
+              profileAddress={market.borrower as `0x${string}`}
+              externalChainId={marketChainId}
+            />
+          )}
+
+          {currentSection === LenderMarketSections.REQUESTS && (
+            <Box marginTop="12px">
+              <WithdrawalRequests
+                withdrawals={withdrawals}
+                chainId={market.chainId}
+              />
+            </Box>
+          )}
+          {currentSection === LenderMarketSections.MARKET_HISTORY && (
+            <Box marginTop="12px">
+              <PaginatedMarketRecordsTable market={market} />
+            </Box>
+          )}
+          {currentSection === LenderMarketSections.WRAP_DEBT_TOKEN && (
+            <WrapDebtToken
+              market={market}
+              wrapper={wrapper}
+              hasWrapper={hasWrapper}
+              hasFactory={hasFactory}
+              isWrapperLoading={isWrapperLoading}
+              isWrapperLookupLoading={isWrapperLookupLoading}
+              isWrapperError={isWrapperError}
+              isAuthorizedLender={authorizedInMarket}
+              isDifferentChain={isDifferentChain}
+            />
+          )}
+        </Box>
+      </Box>
+    </Box>
+  )
+}

@@ -1,0 +1,536 @@
+import React, { useEffect, useMemo, useCallback, useState } from "react"
+
+import { Box, Button, Divider, Typography } from "@mui/material"
+import { MarketAccount } from "@wildcatfi/wildcat-sdk"
+import Link from "next/link"
+import { useTranslation } from "react-i18next"
+import { useAccount } from "wagmi"
+
+import { MarketSectionSwitcher } from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketSectionSwitcher"
+import { BorrowerActiveMarketsTables } from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketsTables/BorrowerActiveMarketsTables"
+import { BorrowerTerminatedMarketsTables } from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketsTables/BorrowerTerminatedMarketsTables"
+import { OtherMarketsTables } from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketsTables/OtherMarketsTables"
+import { useBorrowerInvitationRedirect } from "@/app/[locale]/borrower/hooks/useBorrowerInvitationRedirect"
+import { useLendersMarkets } from "@/app/[locale]/lender/hooks/useLendersMarkets"
+import { FilterTextField } from "@/components/FilterTextfield"
+import { MarketsFilterSelect } from "@/components/MarketsFilterSelect"
+import { MarketsFilterSelectItem } from "@/components/MarketsFilterSelect/interface"
+import { WrongNetworkAlert } from "@/components/WrongNetworkAlert"
+import { useAllTokensWithMarkets } from "@/hooks/useAllTokensWithMarkets"
+import { useCurrentNetwork } from "@/hooks/useCurrentNetwork"
+import { marketStatusesMock } from "@/mocks/mocks"
+import { ROUTES } from "@/routes"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { setSectionAmount } from "@/store/slices/borrowerDashboardAmountsSlice/borrowerDashboardAmountsSlice"
+import { BorrowerMarketDashboardSections } from "@/store/slices/borrowerDashboardSlice/borrowerDashboardSlice"
+import { setMarketFilters } from "@/store/slices/marketFiltersSlice/marketFiltersSlice"
+import { COLORS } from "@/theme/colors"
+import { filterMarketAccounts } from "@/utils/filters"
+import {
+  getKnownMarketOnboardingMode,
+  MarketOnboardingMode,
+} from "@/utils/marketOnboarding"
+import { MarketStatus } from "@/utils/marketStatus"
+
+import { LeadBanner } from "../../../../../components/LeadBanner"
+import { useBorrowerNames } from "../../hooks/useBorrowerNames"
+
+export const MarketsSection = () => {
+  const dispatch = useAppDispatch()
+  const { isTestnet } = useAppSelector((state) => state.selectedNetwork)
+  const [mounted, setMounted] = useState(false)
+
+  const marketSection = useAppSelector(
+    (state) => state.borrowerDashboard.marketSection,
+  )
+
+  const showFullFunctionality = useAppSelector(
+    (state) => state.borrowerDashboard.showFullFunctionality,
+  )
+
+  // filter state lives in redux now
+  const marketFilters = useAppSelector((s) => s.marketFilters.borrower)
+  const {
+    search: marketSearch,
+    assets: marketAssets,
+    statuses: marketStatuses,
+    withdrawalCycles: marketWithdrawalCycles,
+  } = marketFilters
+
+  const setMarketSearch: React.Dispatch<React.SetStateAction<string>> =
+    useCallback(
+      (value) => {
+        const next =
+          typeof value === "function"
+            ? (value as (prev: string) => string)(marketSearch)
+            : value
+        dispatch(
+          setMarketFilters({ role: "borrower", filters: { search: next } }),
+        )
+      },
+      [dispatch, marketSearch],
+    )
+
+  const setMarketAssets: React.Dispatch<
+    React.SetStateAction<MarketsFilterSelectItem[]>
+  > = useCallback(
+    (value) => {
+      const next =
+        typeof value === "function"
+          ? (
+              value as (
+                prev: MarketsFilterSelectItem[],
+              ) => MarketsFilterSelectItem[]
+            )(marketAssets)
+          : value
+      dispatch(
+        setMarketFilters({ role: "borrower", filters: { assets: next } }),
+      )
+    },
+    [dispatch, marketAssets],
+  )
+
+  const setMarketStatuses: React.Dispatch<
+    React.SetStateAction<MarketsFilterSelectItem[]>
+  > = useCallback(
+    (value) => {
+      const next =
+        typeof value === "function"
+          ? (
+              value as (
+                prev: MarketsFilterSelectItem[],
+              ) => MarketsFilterSelectItem[]
+            )(marketStatuses)
+          : value
+      dispatch(
+        setMarketFilters({ role: "borrower", filters: { statuses: next } }),
+      )
+    },
+    [dispatch, marketStatuses],
+  )
+
+  const setMarketWithdrawalCycles: React.Dispatch<
+    React.SetStateAction<MarketsFilterSelectItem[]>
+  > = useCallback(
+    (value) => {
+      const next =
+        typeof value === "function"
+          ? (
+              value as (
+                prev: MarketsFilterSelectItem[],
+              ) => MarketsFilterSelectItem[]
+            )(marketWithdrawalCycles)
+          : value
+      dispatch(
+        setMarketFilters({
+          role: "borrower",
+          filters: { withdrawalCycles: next },
+        }),
+      )
+    },
+    [dispatch, marketWithdrawalCycles],
+  )
+
+  const filters = useMemo(
+    () => ({
+      nameFilter: marketSearch,
+      assetFilter: marketAssets,
+      statusFilter: marketStatuses.map(
+        (status) => status.name,
+      ) as MarketStatus[],
+    }),
+    [marketSearch, marketAssets, marketStatuses],
+  )
+  // tables use this derived object; stable and only changes when inputs change
+
+  const { t } = useTranslation()
+
+  const withdrawalCycleOptions = [
+    { id: "0-86400", name: "≤ 24h" },
+    { id: "86401-259200", name: "1 - 3 days" },
+    { id: "259201-604800", name: "3 - 7 days" },
+    { id: "604801-Infinity", name: "7+ days" },
+  ]
+
+  const { address } = useAccount()
+  const { isWrongNetwork } = useCurrentNetwork()
+  const { data: borrowers } = useBorrowerNames()
+
+  const bannerDisplayConfig = useBorrowerInvitationRedirect()
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const { data: tokensRaw } = useAllTokensWithMarkets()
+  const tokens = useMemo(() => {
+    if (isTestnet) {
+      /// Only take first token with a given symbol
+      return tokensRaw?.filter(
+        (token, index, self) =>
+          index === self.findIndex((x) => x.symbol === token.symbol),
+      )
+    }
+    return tokensRaw
+  }, [tokensRaw])
+
+  const {
+    data: marketAccounts,
+    isLoadingInitial,
+    isLoadingUpdate,
+    onboardingByMarket,
+  } = useLendersMarkets()
+
+  const isLoading = isLoadingInitial || isLoadingUpdate
+
+  const borrowerMarketAccounts = marketAccounts.filter(
+    (account) =>
+      account.market.borrower.toLowerCase() === address?.toLowerCase(),
+  )
+
+  const filteredMarketAccounts = useMemo(
+    () =>
+      filterMarketAccounts(
+        marketAccounts,
+        marketSearch,
+        marketStatuses,
+        marketAssets,
+        borrowers,
+        marketWithdrawalCycles,
+      ),
+    [
+      marketAccounts,
+      marketSearch,
+      marketStatuses,
+      marketAssets,
+      borrowers,
+      address,
+      marketWithdrawalCycles,
+    ],
+  )
+
+  const {
+    active: filteredActiveBorrowerMarkets,
+    terminated: filteredTerminatedBorrowerMarkets,
+    other: filteredOtherMarketAccounts,
+  } = useMemo(
+    () =>
+      filteredMarketAccounts.reduce(
+        (all, account) => {
+          if (
+            account.market.borrower.toLowerCase() === address?.toLowerCase()
+          ) {
+            if (!account.market.isClosed) {
+              all.active.push(account)
+            } else {
+              all.terminated.push(account)
+            }
+          } else {
+            all.other.push(account)
+          }
+
+          return all
+        },
+        {
+          active: [] as MarketAccount[],
+          terminated: [] as MarketAccount[],
+          other: [] as MarketAccount[],
+        },
+      ),
+    [filteredMarketAccounts, address],
+  )
+
+  const noMarkets = borrowerMarketAccounts.length === 0
+
+  const borrowerMarkets = marketAccounts.filter(
+    (account) =>
+      account.market.borrower.toLowerCase() === address?.toLowerCase(),
+  )
+
+  const othersMarkets = marketAccounts.filter(
+    (account) =>
+      account.market.borrower.toLowerCase() !== address?.toLowerCase(),
+  )
+
+  const depositedMarketsAmount = borrowerMarkets.filter((account) => {
+    const { borrowed } = account.market.getTotalDebtBreakdown()
+    return (
+      !account.market.isClosed &&
+      (!account.market.borrowableAssets.raw.isZero() || !borrowed.raw.isZero())
+    )
+  }).length
+
+  const nonDepositedMarketsAmount = borrowerMarkets.filter((account) => {
+    const { borrowed } = account.market.getTotalDebtBreakdown()
+    return (
+      account.market.borrowableAssets.raw.isZero() &&
+      borrowed.raw.isZero() &&
+      !account.market.isClosed &&
+      !account.market.isIncurringPenalties &&
+      !account.market.isDelinquent
+    )
+  }).length
+
+  const prevActiveAmount = borrowerMarkets.filter(
+    (account) => account.market.isClosed && account.hasEverInteracted,
+  ).length
+
+  const neverActiveAmount = borrowerMarkets.filter(
+    (account) => account.market.isClosed && !account.hasEverInteracted,
+  ).length
+
+  const selfOnboardAmount = othersMarkets.filter(
+    (account) =>
+      !account.market.isClosed &&
+      getKnownMarketOnboardingMode(
+        account.market.version,
+        account.market.address,
+        onboardingByMarket,
+      ) === MarketOnboardingMode.SelfOnboard,
+  ).length
+
+  const manualAmount = othersMarkets.filter(
+    (account) =>
+      !account.market.isClosed &&
+      getKnownMarketOnboardingMode(
+        account.market.version,
+        account.market.address,
+        onboardingByMarket,
+      ) === MarketOnboardingMode.BorrowerApproval,
+  ).length
+
+  const terminatedOtherAmount = othersMarkets.filter(
+    (account) => account.market.isClosed,
+  ).length
+
+  useEffect(() => {
+    dispatch(
+      setSectionAmount({
+        name: "deposited",
+        value: isWrongNetwork ? 0 : depositedMarketsAmount,
+      }),
+    )
+    dispatch(
+      setSectionAmount({
+        name: "nonDeposited",
+        value: isWrongNetwork ? 0 : nonDepositedMarketsAmount,
+      }),
+    )
+    dispatch(
+      setSectionAmount({
+        name: "prevActive",
+        value: isWrongNetwork ? 0 : prevActiveAmount,
+      }),
+    )
+    dispatch(
+      setSectionAmount({
+        name: "neverActive",
+        value: isWrongNetwork ? 0 : neverActiveAmount,
+      }),
+    )
+    dispatch(
+      setSectionAmount({
+        name: "selfOnboard",
+        value: isWrongNetwork ? 0 : selfOnboardAmount,
+      }),
+    )
+    dispatch(
+      setSectionAmount({
+        name: "manual",
+        value: isWrongNetwork ? 0 : manualAmount,
+      }),
+    )
+    dispatch(
+      setSectionAmount({
+        name: "terminatedOther",
+        value: isWrongNetwork ? 0 : terminatedOtherAmount,
+      }),
+    )
+  }, [
+    depositedMarketsAmount,
+    nonDepositedMarketsAmount,
+    prevActiveAmount,
+    neverActiveAmount,
+    selfOnboardAmount,
+    manualAmount,
+    terminatedOtherAmount,
+    isWrongNetwork,
+    dispatch,
+  ])
+
+  return (
+    <Box
+      sx={{
+        width: "100%",
+        flex: "1 1 0",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          flexShrink: 0,
+        }}
+      >
+        <Box
+          sx={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "0 24px",
+          }}
+        >
+          <Typography variant="title2" sx={{ marginBottom: "6px" }}>
+            {t("dashboard.markets.title")}
+          </Typography>
+          {!bannerDisplayConfig.hideCreateMarket && (
+            <Link href={ROUTES.borrower.createMarket}>
+              <Button
+                variant="contained"
+                size="small"
+                disabled={isWrongNetwork}
+                sx={{
+                  paddingTop: "8px",
+                  paddingBottom: "8px",
+                  minWidth: "100px",
+                }}
+              >
+                {t("dashboard.markets.borrowerTitleButton")}
+              </Button>
+            </Link>
+          )}
+        </Box>
+        <Typography
+          variant="text3"
+          color={COLORS.santasGrey}
+          sx={{ marginBottom: "24px", padding: "0 24px" }}
+        >
+          {t("dashboard.markets.borrowerSubtitle")}{" "}
+          <Link
+            href="https://docs.wildcat.finance/using-wildcat/day-to-day-usage/borrowers"
+            style={{ color: COLORS.santasGrey }}
+            target="_blank"
+          >
+            {t("dashboard.markets.docsLink")}
+          </Link>
+        </Typography>
+
+        <Box
+          sx={{
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <MarketSectionSwitcher />
+
+          <Divider
+            sx={{
+              marginTop: "18px",
+              borderColor: COLORS.athensGrey,
+              width: "100%",
+            }}
+          />
+
+          <Box
+            sx={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "space-between",
+              padding: "0 24px",
+              marginTop: "16px",
+            }}
+          >
+            <Box sx={{ display: "flex", gap: "6px" }}>
+              <MarketsFilterSelect
+                placeholder={t("dashboard.markets.filters.assets")}
+                options={
+                  tokens?.map((token) => ({
+                    id: token.address,
+                    name: token.symbol,
+                  })) ?? []
+                }
+                selected={marketAssets}
+                setSelected={setMarketAssets}
+              />
+
+              <MarketsFilterSelect
+                placeholder={t("dashboard.markets.filters.statuses")}
+                options={marketStatusesMock}
+                selected={marketStatuses}
+                setSelected={setMarketStatuses}
+              />
+
+              <MarketsFilterSelect
+                placeholder="Withdrawal Cycle"
+                options={withdrawalCycleOptions}
+                selected={marketWithdrawalCycles}
+                setSelected={setMarketWithdrawalCycles}
+              />
+            </Box>
+
+            <FilterTextField
+              value={marketSearch}
+              setValue={setMarketSearch}
+              placeholder={t("dashboard.markets.filters.name")}
+              width="264px"
+            />
+          </Box>
+        </Box>
+      </Box>
+
+      {!bannerDisplayConfig.hideBanner &&
+        !(marketSection === BorrowerMarketDashboardSections.OTHER) && (
+          <Box padding="24px 24px 0">
+            <LeadBanner
+              title={bannerDisplayConfig.title}
+              subtitle={bannerDisplayConfig.message}
+              buttonText={bannerDisplayConfig.button}
+              buttonLink={bannerDisplayConfig.link}
+            />
+          </Box>
+        )}
+
+      {marketSection === BorrowerMarketDashboardSections.ACTIVE &&
+        showFullFunctionality &&
+        !noMarkets &&
+        mounted &&
+        !isWrongNetwork && (
+          <BorrowerActiveMarketsTables
+            marketAccounts={filteredActiveBorrowerMarkets}
+            isLoading={isLoading}
+            filters={filters}
+          />
+        )}
+
+      {marketSection === BorrowerMarketDashboardSections.TERMINATED &&
+        showFullFunctionality &&
+        !noMarkets &&
+        mounted &&
+        !isWrongNetwork && (
+          <BorrowerTerminatedMarketsTables
+            marketAccounts={filteredTerminatedBorrowerMarkets}
+            isLoading={isLoading}
+            filters={filters}
+          />
+        )}
+
+      {marketSection === BorrowerMarketDashboardSections.OTHER &&
+        mounted &&
+        !isWrongNetwork && (
+          <OtherMarketsTables
+            marketAccounts={filteredOtherMarketAccounts}
+            onboardingByMarket={onboardingByMarket}
+            isLoading={isLoading}
+            filters={filters}
+          />
+        )}
+
+      {mounted && isWrongNetwork && <WrongNetworkAlert />}
+    </Box>
+  )
+}

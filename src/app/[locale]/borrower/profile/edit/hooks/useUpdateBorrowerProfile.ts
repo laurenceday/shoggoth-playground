@@ -1,0 +1,130 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query"
+import { useAccount } from "wagmi"
+
+import { BorrowerProfileInput } from "@/app/api/profiles/interface"
+import { toastRequest } from "@/components/Toasts"
+import { QueryKeys } from "@/config/query-keys"
+import { useAuthToken, useRemoveBadApiToken } from "@/hooks/useApiAuth"
+import { useSelectedNetwork } from "@/hooks/useSelectedNetwork"
+
+const hashData = async (data: object): Promise<string> => {
+  const encoder = new TextEncoder()
+  const encodedData = encoder.encode(JSON.stringify(data))
+  const hashBuffer = await crypto.subtle.digest("SHA-256", encodedData)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("")
+}
+
+const formatDateForMessage = (date: Date): string => {
+  const hours = date.getHours().toString().padStart(2, "0")
+  const minutes = date.getMinutes().toString().padStart(2, "0")
+  return `${hours}:${minutes} ${date.getFullYear()}/${(date.getMonth() + 1)
+    .toString()
+    .padStart(2, "0")}/${date.getDate().toString().padStart(2, "0")}`
+}
+
+export const useUpdateBorrowerProfile = () => {
+  const queryClient = useQueryClient()
+  const { address } = useAccount()
+  const { chainId } = useSelectedNetwork()
+  const token = useAuthToken()
+  const { mutate: removeBadToken } = useRemoveBadApiToken()
+  const isAdminForChain = token?.isAdmin && token.chainId === chainId
+
+  const updateBorrowerProfile = async (profile: BorrowerProfileInput) => {
+    if (!token?.token) {
+      throw new Error("No token available. Make sure you are logged in.")
+    }
+    if (!chainId) {
+      throw new Error("No chain ID available. Make sure wallet is connected.")
+    }
+    const response = await fetch(`/api/profiles/updates`, {
+      method: "POST",
+      body: JSON.stringify({ ...profile, chainId }),
+      headers: {
+        Authorization: `Bearer ${token.token}`,
+        "Content-Type": "application/json",
+      },
+    })
+
+    if (response.status === 401) {
+      removeBadToken()
+    }
+    if (!response.ok) {
+      throw new Error("Failed to update profile")
+    }
+
+    return response.json()
+  }
+
+  return useMutation({
+    mutationFn: async (profile: BorrowerProfileInput) => {
+      if (!address || !token) {
+        throw new Error("No address available. Make sure wallet is connected.")
+      }
+      // const dataHash = await hashData(profile)
+      // const currentDate = formatDateForMessage(new Date())
+      // const messageToSign = `I confirm updating my profile data to the new values. Hash of the new data: ${dataHash}, date of changing: ${currentDate}`
+
+      // if (!signer) {
+      //   throw new Error("No signer available. Make sure MetaMask is connected.")
+      // }
+
+      // const signature = await toastRequest(signer.signMessage(messageToSign), {
+      //   pending: `Waiting for MetaMask signature`,
+      //   success: `Signed successfully!`,
+      //   error: `Failed to sign!`,
+      // })
+
+      // if (!signature) {
+      //   throw new Error("Failed to obtain blockchain signature")
+      // }
+
+      await toastRequest(
+        updateBorrowerProfile({
+          ...profile,
+          address: isAdminForChain
+            ? profile.address.toLowerCase()
+            : address.toLowerCase(),
+        }),
+        {
+          pending: `Updating profile...`,
+          success: `Profile updated successfully`,
+          error: `Failed to update profile`,
+        },
+      )
+    },
+    onSuccess: (_, profile) => {
+      if (chainId === undefined) {
+        return
+      }
+      const lowerAddress = isAdminForChain
+        ? profile.address.toLowerCase()
+        : address?.toLowerCase()
+      queryClient.invalidateQueries({
+        queryKey: QueryKeys.Borrower.GET_PROFILE(chainId, lowerAddress),
+      })
+      queryClient.invalidateQueries({
+        queryKey: QueryKeys.Borrower.GET_BORROWER_PROFILE(
+          chainId,
+          lowerAddress,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: QueryKeys.User.GET_BORROWER_NAMES(chainId),
+      })
+      if (isAdminForChain) {
+        queryClient.invalidateQueries({
+          queryKey: QueryKeys.Admin.GET_ALL_BORROWER_PROFILES(
+            chainId,
+            isAdminForChain,
+            token.address,
+          ),
+        })
+      }
+    },
+    onError(error) {
+      console.error("Error updating profile with blockchain signature:", error)
+    },
+  })
+}

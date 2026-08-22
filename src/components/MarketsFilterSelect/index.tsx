@@ -11,7 +11,7 @@ import {
 } from "@mui/material"
 
 import Filter from "@/assets/icons/filter_icon.svg"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { LendersMarketChip } from "@/components/LendersMarketChip"
 import {
   MenuBodyStyle,

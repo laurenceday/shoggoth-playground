@@ -24,11 +24,11 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useTranslation } from "react-i18next"
 
-import { TypeSafeColDef } from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketsTables/interface"
+import { TypeSafeColDef } from "@/app/[locale]/borrower/components/MarketsSection/components/MarketsTables/interface"
 import { LinkCell } from "@/app/[locale]/borrower/components/MarketsTables/style"
 import { useLenderMarketsContext } from "@/app/[locale]/lender/context"
 import ArrowRightIcon from "@/assets/icons/arrowRight_icon.svg"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { MarketStatusChip } from "@/components/@extended/MarketStatusChip"
 import { MarketTypeChip } from "@/components/@extended/MarketTypeChip"
 import {

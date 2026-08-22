@@ -14,7 +14,7 @@ import Link from "next/link"
 import { useTranslation } from "react-i18next"
 
 import Alert from "@/assets/icons/circledAlert_icon.svg"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { DepositAlert } from "@/components/DepositAlert"
 import { NumberTextField } from "@/components/NumberTextfield"
 import { TxModalFooter } from "@/components/TxModalComponents/TxModalFooter"

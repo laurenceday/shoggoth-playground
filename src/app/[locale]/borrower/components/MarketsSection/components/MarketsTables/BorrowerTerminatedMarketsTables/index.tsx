@@ -10,8 +10,8 @@ import { useTranslation } from "react-i18next"
 import {
   MarketsTablesProps,
   TypeSafeColDef,
-} from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketsTables/interface"
-import { DataGridSx } from "@/app/[locale]/borrower/components/MarketsSection/сomponents/MarketsTables/style"
+} from "@/app/[locale]/borrower/components/MarketsSection/components/MarketsTables/interface"
+import { DataGridSx } from "@/app/[locale]/borrower/components/MarketsSection/components/MarketsTables/style"
 import { LinkCell } from "@/app/[locale]/borrower/components/MarketsTables/style"
 import { MarketStatusChip } from "@/components/@extended/MarketStatusChip"
 import {

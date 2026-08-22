@@ -20,7 +20,7 @@ import {
   MarketTableDataType,
 } from "@/app/[locale]/borrower/edit-lenders-list/interface"
 import Icon from "@/assets/icons/search_icon.svg"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { LendersMarketChip } from "@/components/LendersMarketChip"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { setLendersTableData } from "@/store/slices/editLendersListSlice/editLendersListSlice"

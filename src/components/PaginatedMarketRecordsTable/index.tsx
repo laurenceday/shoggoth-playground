@@ -23,7 +23,7 @@ import { COLORS } from "@/theme/colors"
 
 import { useMarketRecords } from "./hooks/useMarketRecords"
 import { MarketRecordsTable } from "./MarketRecordsTable"
-import ExtendedCheckbox from "../@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "../@extended/ExtendedCheckbox"
 
 type CheckboxOption<T> = {
   id: string

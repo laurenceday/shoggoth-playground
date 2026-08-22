@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "controller": "hexctl",
+  "topic": "market category rename",
+  "base": "main",
+  "run_branch": "fiat/691-market-category-rename",
+  "created_at": "2026-08-22T02:27:50.058068+00:00",
+  "phase": "steps",
+  "current_step": 1,
+  "steps": [
+    {
+      "n": 1,
+      "title": "Commit the spec and record the baseline",
+      "status": "open",
+      "phase": "implement",
+      "receipts": {},
+      "audit": {
+        "rounds": []
+      }
+    },
+    {
+      "n": 2,
+      "title": "Rename the two categories and demonstrate",
+      "status": "pending",
+      "phase": null,
+      "receipts": {},
+      "audit": {
+        "rounds": []
+      }
+    }
+  ],
+  "receipts": {
+    "task_issue": "https://github.com/wildcat-finance/product/issues/691",
+    "security_suite": "waived: React/i18n label rename, no Solidity in this repository or this run",
+    "study": {
+      "artifact": "/Users/c0rtexzer0/Documents/GitHub/shoggoth-interceptor/.loops/work/playground-691/.hexaemeron/study.md",
+      "sha256": "3a0d188b1aaf4444717b44f60c5371abdf974260ed9cd2c835d69a478880d386",
+      "skills": [
+        "hexaemeron:protasis",
+        "hexaemeron:imprimatur"
+      ]
+    },
+    "runbook": {
+      "artifact": "/Users/c0rtexzer0/Documents/GitHub/shoggoth-interceptor/.loops/work/playground-691/.hexaemeron/runbook.md",
+      "sha256": "4b13da540a508bf9b5fc274be5b8330a05fa4f0303d6ad58e6de5e0072ffeea8",
+      "step_count": 2
+    }
+  },
+  "config": {
+    "skills": {
+      "prose_lint": "hexaemeron:imprimatur",
+      "voice": "hexaemeron:vulgate",
+      "security": [
+        "hexaemeron:x-ray",
+        "hexaemeron:solidity-auditor",
+        "hexaemeron:fizz"
+      ]
+    },
+    "audit": {
+      "max_rounds": 8,
+      "stacked_suffix": "--audit",
+      "fold": false,
+      "log_path": "audit/AUDIT.md"
+    },
+    "git": {
+      "base": "main",
+      "run_branch_prefix": "fiat/",
+      "draft_pr": false
+    },
+    "solidity": "auto"
+  },
+  "halted": null,
+  "frontier": null
+}

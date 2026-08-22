@@ -2,8 +2,6 @@ import { ChainStats } from "./queries"
 
 export type ProtocolStats = {
   tvl: number
-  /** Dollar total of outstanding active debt across every chain. */
-  totalBorrowed: number
   tvlChangePct30d: number | null
   avgAprWeighted: number
   totalLenderFees: number
@@ -18,9 +16,10 @@ export function aggregateChainStats(chains: ChainStats[]): ProtocolStats {
   let activeMarkets = 0
   let newMarkets7d = 0
   let aprWeightedSum = 0
-  // Outstanding debt is both a figure in its own right and the weight the
-  // average APR divides by. It is summed once and named for what it is.
-  let totalBorrowed = 0
+  // The weight the average APR divides by. Despite the per-chain field being
+  // called totalActiveDebtUSD, this is TVL: queries.ts assigns it `tvlNow` and
+  // both derive from scaledTotalSupply. It is not a second quantity.
+  let tvlForAprWeight = 0
   let tvlNowScope = 0
   let tvlMonthAgoScope = 0
   let feesNowScope = 0
@@ -34,7 +33,7 @@ export function aggregateChainStats(chains: ChainStats[]): ProtocolStats {
     activeMarkets += c.activeMarkets
     newMarkets7d += c.newMarketsLast7d
     aprWeightedSum += c.aprWeightedSumByDebt
-    totalBorrowed += c.totalActiveDebtUSD
+    tvlForAprWeight += c.totalActiveDebtUSD
 
     tvlNowScope += c.tvlNow
     if (c.tvlMonthAgo !== null) {
@@ -59,8 +58,7 @@ export function aggregateChainStats(chains: ChainStats[]): ProtocolStats {
       anyTvlMonth && tvlMonthAgoScope > 0
         ? (tvlNowScope / tvlMonthAgoScope - 1) * 100
         : null,
-    totalBorrowed,
-    avgAprWeighted: totalBorrowed > 0 ? aprWeightedSum / totalBorrowed : 0,
+    avgAprWeighted: tvlForAprWeight > 0 ? aprWeightedSum / tvlForAprWeight : 0,
     totalLenderFees,
     lenderFeesChange30dAbs: anyFeesMonth
       ? feesNowScope - feesMonthAgoScope

@@ -31,6 +31,7 @@ import {
 import { MarketStatus } from "@/utils/marketStatus"
 
 import { OtherMarketsTable } from "../MarketsTables/OtherMarketsTable"
+import { ProtocolSummaryRow } from "../ProtocolSummaryRow"
 import { MobileHeader } from "../MobileHeader"
 
 const withdrawalCycleOptions = [
@@ -308,6 +309,8 @@ export const AllMarketsSection = () => {
               {t("dashboard.markets.docsLink")}
             </Link>
           </Typography>
+
+          <ProtocolSummaryRow />
 
           <Divider
             sx={{

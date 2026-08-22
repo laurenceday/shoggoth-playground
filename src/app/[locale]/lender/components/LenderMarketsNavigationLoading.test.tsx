@@ -43,6 +43,13 @@ jest.mock("@/components/Mobile/MobileFilterButton", () => ({
 jest.mock("@/components/Mobile/MobileSearchButton", () => ({
   MobileSearchButton: () => null,
 }))
+// AllMarketsSection now renders the protocol summary row, which reads a
+// react-query hook. This file mocks its data hooks rather than standing up
+// providers, so the new one is mocked the same way; without it the section
+// throws "No QueryClient set" and the loading assertions never run.
+jest.mock("@/lib/protocol-stats/useProtocolStats", () => ({
+  useProtocolStats: jest.fn(() => ({ data: undefined, isLoading: true })),
+}))
 jest.mock("@/components/WrongNetworkAlert", () => ({
   WrongNetworkAlert: () => null,
 }))

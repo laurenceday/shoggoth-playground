@@ -149,8 +149,8 @@
         },
         "other": {
           "title": "Other Markets",
-          "selfOnboard": "Self-Onboard",
-          "manual": "Onboard by Borrower",
+          "publicMarkets": "Public Markets",
+          "privateMarkets": "Private Markets",
           "terminated": "Terminated",
           "depositBTN": "Deposit",
           "requestBTN": "Request"

@@ -118,12 +118,12 @@ export const MobileHeader = ({ children }: { children: ReactNode }) => {
         }}
       >
         <MobileSwitcherButton
-          label={t("dashboard.markets.tables.other.selfOnboard")}
+          label={t("dashboard.markets.tables.other.publicMarkets")}
           target="self-onboard"
           amount={selfOnboardAmount}
         />
         <MobileSwitcherButton
-          label={t("dashboard.markets.tables.other.manual")}
+          label={t("dashboard.markets.tables.other.privateMarkets")}
           target="manual"
           amount={manualAmount}
         />

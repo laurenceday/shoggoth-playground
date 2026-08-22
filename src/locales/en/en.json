@@ -124,6 +124,11 @@
     "markets": {
       "title": "Markets",
       "borrowerSubtitle": "All markets you’ve previously created.",
+      "summary": {
+        "tvl": "Total Value Locked",
+        "interestAccrued": "Total Interest Accrued",
+        "thisMonth": "this month"
+      },
       "lenderSubtitle": "All markets you have a position in or are potentially eligible for.",
       "docsLink": "Learn More (Documentation)",
       "borrowerTitleButton": "+ Create New Market",

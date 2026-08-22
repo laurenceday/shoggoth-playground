@@ -175,6 +175,9 @@ export async function fetchEthereumMainnetStats(): Promise<ChainStats> {
     activeMarkets,
     newMarketsLast7d: snap.newMarkets.length,
     aprWeightedSumByDebt,
+    // An alias of tvlNow, not a second quantity. In these markets a lender's
+    // deposit is the borrower's debt, so supply and debt are the same sum.
+    // Anything wanting borrowed-versus-idle has to compute it, not read this.
     totalActiveDebtUSD: tvlNow,
   }
 }
@@ -239,6 +242,9 @@ export async function fetchPlasmaMainnetStats(): Promise<ChainStats> {
     activeMarkets,
     newMarketsLast7d: data.newMarkets.length,
     aprWeightedSumByDebt,
+    // An alias of tvlNow, not a second quantity. In these markets a lender's
+    // deposit is the borrower's debt, so supply and debt are the same sum.
+    // Anything wanting borrowed-versus-idle has to compute it, not read this.
     totalActiveDebtUSD: tvlNow,
   }
 }

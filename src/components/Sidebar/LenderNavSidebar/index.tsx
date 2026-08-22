@@ -227,12 +227,12 @@ export const LenderNavSidebar = () => {
               open
             >
               <DashboardButton
-                label={t("dashboard.markets.tables.other.selfOnboard")}
+                label={t("dashboard.markets.tables.other.publicMarkets")}
                 amount={selfOnboardAmount}
                 onClick={() => dispatch(setScrollTarget("self-onboard"))}
               />
               <DashboardButton
-                label={t("dashboard.markets.tables.other.manual")}
+                label={t("dashboard.markets.tables.other.privateMarkets")}
                 amount={manualAmount}
                 onClick={() => dispatch(setScrollTarget("manual"))}
               />

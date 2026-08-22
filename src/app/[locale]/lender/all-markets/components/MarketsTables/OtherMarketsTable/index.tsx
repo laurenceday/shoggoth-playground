@@ -489,7 +489,7 @@ export const OtherMarketsTable = ({
     >
       <Box id="self-onboard" ref={selfOnboardRef}>
         <MarketsTableAccordion
-          label={t("dashboard.markets.tables.other.selfOnboard")}
+          label={t("dashboard.markets.tables.other.publicMarkets")}
           marketsLength={selfOnboard.length}
           isLoading={isLoading}
           isOpen
@@ -517,7 +517,7 @@ export const OtherMarketsTable = ({
       </Box>
       <Box id="manual" ref={manualRef}>
         <MarketsTableAccordion
-          label={t("dashboard.markets.tables.other.manual")}
+          label={t("dashboard.markets.tables.other.privateMarkets")}
           isLoading={isLoading}
           isOpen
           marketsLength={manual.length}

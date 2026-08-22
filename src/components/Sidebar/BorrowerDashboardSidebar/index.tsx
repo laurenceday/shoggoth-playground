@@ -170,12 +170,12 @@ export const BorrowerDashboardSidebar = () => {
           }
         >
           <DashboardButton
-            label={t("dashboard.markets.tables.other.selfOnboard")}
+            label={t("dashboard.markets.tables.other.publicMarkets")}
             amount={selfOnboardAmount}
             onClick={() => handleScrollToTable("self-onboard")}
           />
           <DashboardButton
-            label={t("dashboard.markets.tables.other.manual")}
+            label={t("dashboard.markets.tables.other.privateMarkets")}
             amount={manualAmount}
             onClick={() => handleScrollToTable("manual")}
           />

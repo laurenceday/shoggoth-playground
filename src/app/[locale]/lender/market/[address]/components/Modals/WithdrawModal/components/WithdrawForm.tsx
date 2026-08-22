@@ -5,7 +5,7 @@ import { MarketAccount, TokenWrapper } from "@wildcatfi/wildcat-sdk"
 import { useTranslation } from "react-i18next"
 
 import { useWithdrawRouting } from "@/app/[locale]/lender/market/[address]/hooks/useWithdrawRouting"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { NumberTextField } from "@/components/NumberTextfield"
 import { TextfieldChip } from "@/components/TextfieldAdornments/TextfieldChip"
 import { COLORS } from "@/theme/colors"

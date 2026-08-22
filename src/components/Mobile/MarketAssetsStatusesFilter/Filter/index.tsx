@@ -2,7 +2,7 @@ import React from "react"
 
 import { FormControl, FormControlLabel } from "@mui/material"
 
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 
 import {
   parentAssetId,

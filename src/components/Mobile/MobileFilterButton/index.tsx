@@ -13,7 +13,7 @@ import {
 
 import Cross from "@/assets/icons/cross_icon.svg"
 import Filter from "@/assets/icons/filter_icon.svg"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { SmallFilterSelectItem } from "@/components/SmallFilterSelect"
 import { COLORS } from "@/theme/colors"
 

@@ -1,7 +1,7 @@
 import { Box, Checkbox as MUICheckbox } from "@mui/material"
 import type { Meta } from "@storybook/react"
 
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 
 export default {
   title: "Components/Checkbox",

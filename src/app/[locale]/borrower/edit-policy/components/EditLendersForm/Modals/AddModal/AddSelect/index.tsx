@@ -20,7 +20,7 @@ import {
 } from "@/app/[locale]/borrower/edit-lenders-list/interface"
 import Cross from "@/assets/icons/cross_icon.svg"
 import Icon from "@/assets/icons/search_icon.svg"
-import ExtendedCheckbox from "@/components/@extended/ExtendedСheckbox"
+import ExtendedCheckbox from "@/components/@extended/ExtendedCheckbox"
 import { LendersMarketChip } from "@/components/LendersMarketChip"
 import { useAppSelector } from "@/store/hooks"
 import { COLORS } from "@/theme/colors"

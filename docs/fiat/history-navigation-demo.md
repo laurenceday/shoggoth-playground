@@ -47,9 +47,27 @@ Test Suites: 2 passed, 2 total
 Tests:       34 passed, 34 total
 ```
 
+The two signature-success paths were then given suites of their own, because
+inferring them from the shared helper is weaker than asserting them. Run
+against the pre-change sources restored from step 1's branch:
+
+```text
+Test Suites: 2 failed, 2 total
+Tests:       5 failed, 5 total
+
+  ● ReacceptButton > returns to the page that sent the user here
+  ● ReacceptButton > never leaves the application, whatever the target says
+  ● useSignAgreement success navigation > returns to the page that sent the user here
+  ● useSignAgreement success navigation > falls back to the lender root when nothing was carried
+  ● useSignAgreement success navigation > never leaves the application after a successful signature
+```
+
+After the change, the same two suites pass 5 of 5, and the three agreement
+suites together pass 11 of 11.
+
 `src/utils/returnTarget.test.ts` is a new module's table, so its cases could
 only fail before the change by failing to import. That is not a guard and is
-not offered as one. The six AgreementPage cases are the guard, and the
+not offered as one. The eleven component and hook cases are the guards, and the
 rejection rows in the table are what make the refusals enumerable.
 
 ## The rejection table

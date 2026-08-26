@@ -31,6 +31,16 @@ describe("parseReturnTarget", () => {
     ["a lender agreement route, which would loop", ROUTES.lender.agreement],
     ["a borrower agreement route, which would loop", ROUTES.borrower.agreement],
     ["a prefix look-alike", "/lenderevil"],
+    // A browser strips tab, newline and carriage return from a URL before
+    // parsing, so these fold into a protocol-relative authority. The origin
+    // check catches them; these rows keep it caught.
+    ["a tab folded into an authority", "/\t/evil.example/x"],
+    ["a newline folded into an authority", "/\n/evil.example/x"],
+    ["a carriage return folded into an authority", "/\r/evil.example/x"],
+    ["userinfo smuggled onto the prefix", "/lender@evil.example"],
+    ["an encoded separator in the prefix", "/lender%2F../evil"],
+    ["double-encoded traversal", "/lender/%2e%2e/%2e%2e/evil"],
+    ["an uppercase prefix", "/LENDER/x"],
     ["an empty string", ""],
     ["null", null],
     ["undefined", undefined],
@@ -38,6 +48,29 @@ describe("parseReturnTarget", () => {
 
   it.each(rejected)("rejects %s", (_label, value) => {
     expect(parseReturnTarget(value)).toBeNull()
+  })
+})
+
+describe("parseReturnTarget behaviours worth pinning", () => {
+  it("normalises dot segments before checking the prefix", () => {
+    expect(parseReturnTarget("/lender/../borrower/x")).toBe("/borrower/x")
+  })
+
+  it("drops the fragment and keeps the query string", () => {
+    expect(parseReturnTarget("/lender/my-markets#frag")).toBe(
+      "/lender/my-markets",
+    )
+    expect(parseReturnTarget("/lender/market/0xabc?chainId=1")).toBe(
+      "/lender/market/0xabc?chainId=1",
+    )
+  })
+
+  it("accepts an in-app path carrying its own returnTo, which stays in-app", () => {
+    // Harmless: the destination is the pathname, and the nested parameter is
+    // read by nothing at that route. Pinned so it stays a deliberate outcome.
+    expect(
+      parseReturnTarget("/lender/my-markets?returnTo=https://evil.example"),
+    ).toBe("/lender/my-markets?returnTo=https://evil.example")
   })
 })
 

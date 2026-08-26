@@ -29,3 +29,19 @@ Elenchus verdict: guarded
 | S2-R1-01 | low | src/utils/returnTarget.test.ts | The rejection table omitted the forms a browser folds before parsing: a tab, newline or carriage return that becomes a protocol-relative authority, userinfo smuggled onto the prefix, and encoded or double-encoded separators. All twelve probes were already refused by the origin and prefix checks, so this is missing coverage rather than a live bypass, but a later change to the validator could regress any of them with no test failing. | fixed in e586361 |
 
 Leads not pursued: three. `parseReturnTarget` accepts `/lender/my-markets?returnTo=https://evil.example`, returning that whole in-app path; the destination is the pathname, the nested parameter is read by nothing at that route, and the behaviour is now pinned by a test rather than left to chance. The fragment is dropped from a return target, so a deep link into a page section is not restored; that is a deliberate narrowing and restoring it would widen the value handed to `router.push` for no reported need. The three agreement routes still have no `returnTo` on a direct visit, so a user who bookmarks `/lender/agreement` and signs lands on the lender root rather than anywhere more specific, which is the intended fallback and not a defect.
+
+## Step 2, round 2 -- 2026-08-26T14:48:35Z
+
+Audit schema: fiat-audit-round/v2
+
+Covered: open-redirect=reviewed; return-target-allowlist=reviewed; signature-then-exit=reviewed; origin-preserved=reviewed; party-fallback=reviewed; test-baseline=reviewed; guard-strength=reviewed; no-scope-bleed=reviewed; borrower-back-destination=reviewed
+
+Not checked: runtime behaviour in a real browser, and no message was actually signed. ESLint and the Next build cannot run on this base.
+
+Elenchus verdict: passed
+
+| id | severity | file | finding | status |
+| --- | --- | --- | --- | --- |
+| -- | -- | -- | none | -- |
+
+Leads not pursued: one. A sweep of the whole tree for `router.back()` and `history.back(` outside test files returns exactly one live call, `src/components/BackButton/index.tsx:51`, which is this base's copy of the control pull request 34 already fixes; this run is cut from `develop` before that lands and does not touch the file. The only other match is a comment in `src/components/Sidebar/LendersListSidebar/index.tsx` recording why the call was removed there.

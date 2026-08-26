@@ -38,7 +38,7 @@ Covered: open-redirect=reviewed; return-target-allowlist=reviewed; signature-the
 
 Not checked: runtime behaviour in a real browser, and no message was actually signed. ESLint and the Next build cannot run on this base.
 
-Elenchus verdict: passed
+Elenchus verdict: null
 
 | id | severity | file | finding | status |
 | --- | --- | --- | --- | --- |
